@@ -39,10 +39,15 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "ws2812_config.h"
+#include "light_ws2812.h"
+
 // Define the Grbl system include files. NOTE: Do not alter organization.
 #include "config.h"
 #include "nuts_bolts.h"
+//extern "C" {
 #include "settings.h"
+//}
 #include "system.h"
 #include "defaults.h"
 #include "cpu_map.h"

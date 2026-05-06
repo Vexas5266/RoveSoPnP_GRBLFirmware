@@ -21,6 +21,7 @@
 */
 
 #include "grbl.h"
+#include "light_ws2812.h"
 
 // NOTE: Max line number is defined by the g-code standard to be 99999. It seems to be an
 // arbitrary value, and some GUIs may require more. So we increased it based on a max safe
@@ -37,6 +38,13 @@
 // Declare gc extern struct
 parser_state_t gc_state;
 parser_block_t gc_block;
+
+#define NEOPIXEL_ONE_PIN 37
+#define NEOPIXEL_TWO_PIN 39
+#define NUMPIXELS 12
+
+struct cRGB led1[NUMPIXELS];
+struct cRGB led2[NUMPIXELS];
 
 #define FAIL(status) return(status);
 
@@ -292,8 +300,10 @@ uint8_t gc_execute_line(char *line)
               gc_block.modal.override = OVERRIDE_PARKING_MOTION;
               break;
           #endif
-          case 62: case 63: case 64: case 65:
+          case 62: case 63: case 64: case 65: case 69: case 70:
             // M62, M63, M64, M65
+            // Case 69 is neopixel control on pin 37
+            // Case 70 is also neopixel control on pin 36
             dword_bit = MODAL_GROUP_M10;
             gc_block.non_modal_command = int_value;
             break;
@@ -1253,7 +1263,7 @@ uint8_t gc_execute_line(char *line)
 #else
   if (axis_command) { bit_false(value_dwords,(dwbit(DWORD_X)|dwbit(DWORD_Y)|dwbit(DWORD_Z))); } // Remove axis words.
 #endif
-  if (value_dwords) { FAIL(STATUS_GCODE_UNUSED_WORDS); } // [Unused words]
+  // if (value_dwords) { FAIL(STATUS_GCODE_UNUSED_WORDS); } // [Unused words]
 
   /* -------------------------------------------------------------------------------------
      STEP 4: EXECUTE!!
@@ -1554,7 +1564,7 @@ uint8_t gc_execute_line(char *line)
   }
 
   // [22. Digital output ]:
-  if ((gc_block.non_modal_command >= NON_MODAL_DIGITAL_SYNC_ON) && (gc_block.non_modal_command <= NON_MODAL_DIGITAL_IMMEDIATE_OFF)) {
+  if ((gc_block.non_modal_command >= NON_MODAL_DIGITAL_SYNC_ON) && (gc_block.non_modal_command <= NON_MODAL_NEOPIXEL_TWO_OUTPUT)) {
     uint8_t digital_mode = digital_get_state();
     switch(gc_block.non_modal_command) {
       case NON_MODAL_DIGITAL_SYNC_ON:
@@ -1568,6 +1578,40 @@ uint8_t gc_execute_line(char *line)
         break;
       case NON_MODAL_DIGITAL_IMMEDIATE_OFF:
         digital_set_state(digital_mode & ~(bit((uint8_t) gc_block.values.p)));
+        break;
+      case NON_MODAL_NEOPIXEL_ONE_OUTPUT: // M69
+        printPgmString(PSTR("\r\n Neopixel output one called with p:"));
+        print_uint8_base10(gc_block.values.p);
+        printPgmString(PSTR(" r:"));
+        print_uint8_base10(gc_block.values.r);
+        printPgmString(PSTR(" s:"));
+        print_uint8_base10(gc_block.values.s);
+        printPgmString(PSTR("\r\n"));
+        for (int iter  = 0; iter < NUMPIXELS; iter++){
+          led1[iter].r=(uint8_t)gc_block.values.p;
+          led1[iter].g=(uint8_t)gc_block.values.r;
+          led1[iter].b=(uint8_t)gc_block.values.s;
+        }
+        ws2812_setleds_pin(led1, 12, 0b00000001);
+        // led[0].r=255;led[0].g=00;led[0].b=0;    // Write red to array
+        // ws2812_setleds(led,1);
+        break;
+      case NON_MODAL_NEOPIXEL_TWO_OUTPUT: //M70
+        printPgmString(PSTR("\r\n Neopixel output two called with p:"));
+        print_uint8_base10(gc_block.values.p);
+        printPgmString(PSTR(" r:"));
+        print_uint8_base10(gc_block.values.r);
+        printPgmString(PSTR(" s:"));
+        print_uint8_base10(gc_block.values.s);
+        printPgmString(PSTR("\r\n"));
+        for (int iter  = 0; iter < NUMPIXELS; iter++){
+          led2[iter].r=(uint8_t)gc_block.values.p;
+          led2[iter].g=(uint8_t)gc_block.values.r;
+          led2[iter].b=(uint8_t)gc_block.values.s;
+        }
+        ws2812_setleds_pin(led2, 12, 0b00000010);
+        // led[0].r=255;led[0].g=00;led[0].b=0;    // Write red to array
+        // ws2812_setleds(led,1);
         break;
     }
   }
